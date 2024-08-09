@@ -20,6 +20,20 @@ class AppDb extends _$AppDb {
 
   @override
   int get schemaVersion => 1;
+
+  Future<List<Category>> getAllCategoriesRepo(int type) async {
+    return await (select(categories)..where((tbl) => tbl.type.equals(type)))
+        .get();
+  }
+
+  Future<int> updateCategory(int id, String name) async {
+    return await (update(categories)..where((tbl) => tbl.id.equals(id)))
+        .write(CategoriesCompanion(name: Value(name)));
+  }
+
+  Future<int> deleteCategoryRepo(int id) async {
+    return await (delete(categories)..where((tbl) => tbl.id.equals(id))).go();
+  }
 }
 
 LazyDatabase _openConnection() {

@@ -12,6 +12,8 @@ class CategoryPage extends StatefulWidget {
 class _CategoryPageState extends State<CategoryPage> {
   bool isExpense = true;
   final AppDb database = AppDb();
+  final TextEditingController categoryNameController = TextEditingController();
+  int type = 2;
 
   Future<void> insert(String name, int type) async {
     DateTime now = DateTime.now();
@@ -22,7 +24,19 @@ class _CategoryPageState extends State<CategoryPage> {
     print(row);
   }
 
-  void openDialog() {
+  Future<List<Category>> getAllCategories(int type) async {
+    return await database.getAllCategoriesRepo(type);
+  }
+
+  Future<int> updateCategory(int id, String name) async {
+    return await database.updateCategory(id, name);
+  }
+
+  void openDialog(Category? category) {
+    if (category != null) {
+      categoryNameController.text = category.name;
+    }
+
     showDialog(
         context: context,
         builder: (BuildContext context) {
@@ -41,6 +55,7 @@ class _CategoryPageState extends State<CategoryPage> {
                       height: 10,
                     ),
                     TextFormField(
+                      controller: categoryNameController,
                       decoration: const InputDecoration(
                           border: OutlineInputBorder(), hintText: "Name"),
                     ),
@@ -49,7 +64,18 @@ class _CategoryPageState extends State<CategoryPage> {
                     ),
                     ElevatedButton(
                         onPressed: () {
-                          insert("Belanja", 1);
+                          if (category == null) {
+                            insert(
+                                categoryNameController.text, isExpense ? 2 : 1);
+                          } else {
+                            updateCategory(
+                                category.id, categoryNameController.text);
+                          }
+
+                          Navigator.of(context, rootNavigator: true)
+                              .pop('dialog');
+                          setState(() {});
+                          categoryNameController.clear();
                         },
                         child: const Text("Save"))
                   ],
@@ -75,6 +101,7 @@ class _CategoryPageState extends State<CategoryPage> {
                 onChanged: (bool value) {
                   setState(() {
                     isExpense = value;
+                    type = value ? 2 : 1;
                   });
                 },
                 inactiveTrackColor: Colors.green[200],
@@ -83,68 +110,77 @@ class _CategoryPageState extends State<CategoryPage> {
               ),
               IconButton(
                   onPressed: () {
-                    openDialog();
+                    openDialog(null);
                   },
                   icon: const Icon(Icons.add))
             ],
           ),
         ),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Card(
-            elevation: 5,
-            child: ListTile(
-              leading: (isExpense)
-                  ? const Icon(
-                      Icons.upload,
-                      color: Colors.red,
-                    )
-                  : const Icon(
-                      Icons.download,
-                      color: Colors.green,
-                    ),
-              title: const Text("Tabungan"),
-              trailing: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  IconButton(onPressed: () {}, icon: const Icon(Icons.delete)),
-                  const SizedBox(
-                    width: 5,
-                  ),
-                  IconButton(onPressed: () {}, icon: const Icon(Icons.edit))
-                ],
-              ),
-            ),
-          ),
-        ),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Card(
-            elevation: 5,
-            child: ListTile(
-              leading: (isExpense)
-                  ? const Icon(
-                      Icons.upload,
-                      color: Colors.red,
-                    )
-                  : const Icon(
-                      Icons.download,
-                      color: Colors.green,
-                    ),
-              title: const Text("Tabungan"),
-              trailing: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  IconButton(onPressed: () {}, icon: const Icon(Icons.delete)),
-                  const SizedBox(
-                    width: 5,
-                  ),
-                  IconButton(onPressed: () {}, icon: const Icon(Icons.edit))
-                ],
-              ),
-            ),
-          ),
-        ),
+        FutureBuilder(
+            future: getAllCategories(type),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(
+                  child: CircularProgressIndicator(),
+                );
+              } else {
+                if (snapshot.hasData) {
+                  if (snapshot.data!.isNotEmpty) {
+                    return ListView.builder(
+                        shrinkWrap: true,
+                        itemCount: snapshot.data!.length,
+                        itemBuilder: (context, index) {
+                          return Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 16),
+                            child: Card(
+                              elevation: 5,
+                              child: ListTile(
+                                leading: (isExpense)
+                                    ? const Icon(
+                                        Icons.upload,
+                                        color: Colors.red,
+                                      )
+                                    : const Icon(
+                                        Icons.download,
+                                        color: Colors.green,
+                                      ),
+                                title: Text(snapshot.data![index].name),
+                                trailing: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    IconButton(
+                                        onPressed: () {
+                                          database.deleteCategoryRepo(
+                                              snapshot.data![index].id);
+                                          setState(() {});
+                                        },
+                                        icon: const Icon(Icons.delete)),
+                                    const SizedBox(
+                                      width: 5,
+                                    ),
+                                    IconButton(
+                                        onPressed: () {
+                                          openDialog(snapshot.data![index]);
+                                        },
+                                        icon: const Icon(Icons.edit))
+                                  ],
+                                ),
+                              ),
+                            ),
+                          );
+                        });
+                  } else {
+                    return const Center(
+                      child: Text("Tida ada data!"),
+                    );
+                  }
+                } else {
+                  return const Center(
+                    child: Text("Tidak ada data!"),
+                  );
+                }
+              }
+            }),
       ],
     ));
   }
